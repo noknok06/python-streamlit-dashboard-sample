@@ -1,6 +1,5 @@
-streamlit
-sqlite3
-pandas
-matplotlib.pyplot
-datetime
-plotly.express
+streamlit == 1.27.2
+pandas == 2.1.4
+matplotlib == 3.7.0
+plotly == 5.14.1
+plotly-express == 0.4.1
