@@ -63,19 +63,20 @@ if tokui_nm != "":
 hanbai_total = df['販売価格'].sum()
 count_total = len(df)
 
-col1, col2 = st.columns(2)
-col1.metric("期間内総売上高：", f"{hanbai_total:,}")
-col2.metric("期間内総販売回数", f"{count_total:,}")
+col1_1, col1_2 = st.columns(2)
+col1_1.metric("期間内総売上高：", f"{hanbai_total:,}")
+col1_2.metric("期間内総販売回数", f"{count_total:,}")
 style_metric_cards()
 
-with col1:
+col2_1, col2_2 = st.columns(2)
+with col2_1:
     toku_uri_df = df
     toku_uri_df = df.loc[:, ["得意先名","販売価格"]]
     toku_uri_df = toku_uri_df.groupby(['得意先名']).sum()
     toku_uri_df = toku_uri_df.reset_index()  # インデックスを列に変換
     l.toku_uri(toku_uri_df)
     
-with col2:
+with col2_2:
     item_uri_df = df
     item_uri_df = df.loc[:, ["商品名","販売価格"]]
     item_uri_df = item_uri_df.groupby(['商品名']).sum()
