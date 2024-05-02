@@ -1,13 +1,15 @@
 import streamlit as st
+from streamlit_extras.metric_cards import style_metric_cards
 import sqlite3
 import pandas as pd
-import matplotlib.pyplot as plt
 from datetime import datetime
-import plotly.express as px
+
+from manage_database import ManageDatabase as mdb
+from layout import layout as l
 
 
 st.set_page_config(
-    page_title="Ex-stream-ly Cool App",
+    page_title="sample-app",
     page_icon="🧊",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -19,38 +21,18 @@ st.set_page_config(
 )
 
 # SQLiteデータベースに接続
-conn = sqlite3.connect('sales_database.db')
-c = conn.cursor()
 
-# 売上実績データを取得する関数
-def get_sales_data(sql):
-    c.execute(sql)
-    rows = c.fetchall()
-    columns = [desc[0] for desc in c.description]
-    return pd.DataFrame(rows, columns=columns)
-
-# 売上実績チャートを作成する関数
-def plot_sales_chart():
-    df = get_sales_data()
-    if df.empty:
-        st.warning("売上実績データがありません。")
-    else:
-        st.write("## 売上実績チャート")
-        sales_chart_data = df.groupby('売上日').sum()['数量']
-        sales_chart_data.plot(kind='line', figsize=(10, 6))
-        plt.xlabel('売上日')
-        plt.ylabel('数量')
-        plt.title('売上実績')
-        st.pyplot()
+conn = mdb('sales_database.db')
 
 # 年月日時の範囲を指定するスライダー
-start_datetime = st.slider("売上日時の範囲", 
-                           min_value=datetime(2020, 1, 1), 
-                           max_value=datetime(2024, 12, 31),
-                           value=(datetime(2024, 1, 1), datetime(2024, 12, 31)))
+start_datetime = st.sidebar.slider("売上日時の範囲",
+                        min_value=datetime(2020, 1, 1),
+                        max_value=datetime(2024, 12, 31),
+                        value=(datetime(2024, 1, 1), datetime(2024, 12, 31)))
 
 # 選択された日付範囲を年月日に分割
-start_year, start_month, start_day = start_datetime[0].year, start_datetime[0].month, start_datetime[0].day
+start_year, start_month, start_day = start_datetime[
+    0].year, start_datetime[0].month, start_datetime[0].day
 end_year, end_month, end_day = start_datetime[1].year, start_datetime[1].month, start_datetime[1].day
 
 # フィルタリング条件に基づいてデータを取得
@@ -62,45 +44,45 @@ sql = """
     WHERE uri.売上日付 BETWEEN ? AND ?
     ORDER BY uri.売上日付 desc
 """
-result = c.execute(sql, (start_datetime[0], start_datetime[1])).fetchall()
+result = conn.c.execute(sql, (start_datetime[0], start_datetime[1])).fetchall()
 
 # 接続を閉じる
-conn.close()
+conn.disconnect_database()
 
 # メインとなるデータフレーム
 df = pd.DataFrame(result)
 new_columns = ['売上日付', '得意先名', '商品名', '数量', '単価']
 df.columns = new_columns
+df['販売価格'] = df['数量'] * df['単価']
 
-tokui_nm = st.text_input('得意先名を入力してください')
+tokui_nm = st.sidebar.text_input('得意先名を入力してください')
 
 if tokui_nm != "":
     df = df[df['得意先名'].str.contains(tokui_nm)]
 
-total = df['単価'].sum()
-
-st.text("総売上高：" + str(int(total)))
+hanbai_total = df['販売価格'].sum()
+count_total = len(df)
 
 col1, col2 = st.columns(2)
+col1.metric("期間内総売上高：", f"{hanbai_total:,}")
+col2.metric("期間内総販売回数", f"{count_total:,}")
+style_metric_cards()
 
 with col1:
-    st.subheader("得意先商品売上 TOP10")
-    new_columns = ['売上日付', '得意先名', '商品名', '数量', '単価']
-    df.columns = new_columns
-    department_group_df = df.drop(['売上日付'], axis=1)
-    department_group_df = department_group_df.groupby(["得意先名", "商品名"]).sum()
-    sorted_df = department_group_df.sort_values(by='単価', ascending=False)
-    st.table(sorted_df.head(10))
-
-with col2:
-    st.subheader("商品別売上")
     toku_uri_df = df
-    toku_uri_df = df.drop(['売上日付', '得意先名', '数量'], axis=1)
-    toku_uri_df = toku_uri_df.groupby(['商品名']).sum()
+    toku_uri_df = df.loc[:, ["得意先名","販売価格"]]
+    toku_uri_df = toku_uri_df.groupby(['得意先名']).sum()
     toku_uri_df = toku_uri_df.reset_index()  # インデックスを列に変換
-    new_columns = ['商品名', '単価']
-    toku_uri_df.columns = new_columns
-    # Plotlyのfigを作成
-    fig = px.bar(toku_uri_df, x='商品名', y='単価')
-    # Streamlitに表示
-    st.plotly_chart(fig, use_container_width=True)
+    l.toku_uri(toku_uri_df)
+    
+with col2:
+    item_uri_df = df
+    item_uri_df = df.loc[:, ["商品名","販売価格"]]
+    item_uri_df = item_uri_df.groupby(['商品名']).sum()
+    item_uri_df = item_uri_df.reset_index()  # インデックスを列に変換
+    l.item_uri(item_uri_df)
+
+department_group_df = df.loc[:, ["得意先名", "商品名","数量","単価", "販売価格"]]
+department_group_df = department_group_df.groupby(["得意先名", "商品名"]).sum()
+sorted_df = department_group_df.sort_values(by='販売価格', ascending=False)
+l.toku_uri_ranking(sorted_df)
