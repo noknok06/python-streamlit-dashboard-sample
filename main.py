@@ -37,7 +37,7 @@ end_year, end_month, end_day = start_datetime[1].year, start_datetime[1].month, 
 
 # フィルタリング条件に基づいてデータを取得
 sql = """
-    SELECT uri.売上日付, toku.得意先名, sho.商品名, uri.数量, CAST(sho.単価 AS INT)
+    SELECT uri.売上日付, toku.得意先名, sho.商品コード, sho.商品名, uri.数量, CAST(sho.単価 AS INT)
     FROM 売上実績 uri INNER JOIN 得意先マスタ toku
         ON uri.得意先コード = toku.得意先コード INNER JOIN 商品マスタ sho
         ON uri.商品コード = sho.商品コード
@@ -51,14 +51,19 @@ conn.disconnect_database()
 
 # メインとなるデータフレーム
 df = pd.DataFrame(result)
-new_columns = ['売上日付', '得意先名', '商品名', '数量', '単価']
+new_columns = ['売上日付', '得意先名', '商品コード', '商品名', '数量', '単価']
 df.columns = new_columns
 df['販売価格'] = df['数量'] * df['単価']
 
-tokui_nm = st.sidebar.text_input('得意先名を入力してください')
+tokui_selector = set(df['得意先名'])
+item_selector = set(df['商品コード'])
+tokui_nm = st.sidebar.multiselect('得意先を選択してください', tokui_selector)
+item_cd = st.sidebar.multiselect('商品コードを選択してください', item_selector)
 
-if tokui_nm != "":
-    df = df[df['得意先名'].str.contains(tokui_nm)]
+if len(tokui_nm) > 0:
+    df = df[df['得意先名'].isin(tokui_nm)]
+if len(item_cd) > 0:
+    df = df[df['商品コード'].isin(item_cd)]
 
 hanbai_total = df['販売価格'].sum()
 count_total = len(df)
@@ -71,15 +76,15 @@ style_metric_cards()
 col2_1, col2_2 = st.columns(2)
 with col2_1:
     toku_uri_df = df
-    toku_uri_df = df.loc[:, ["得意先名","販売価格"]]
-    toku_uri_df = toku_uri_df.groupby(['得意先名']).sum()
+    toku_uri_df = df.loc[:, ["得意先名","商品名","販売価格"]]
+    toku_uri_df = toku_uri_df.groupby(['得意先名',"商品名"]).sum()
     toku_uri_df = toku_uri_df.reset_index()  # インデックスを列に変換
     l.toku_uri(toku_uri_df)
     
 with col2_2:
     item_uri_df = df
-    item_uri_df = df.loc[:, ["商品名","販売価格"]]
-    item_uri_df = item_uri_df.groupby(['商品名']).sum()
+    item_uri_df = df.loc[:, ["得意先名","商品名","販売価格"]]
+    item_uri_df = item_uri_df.groupby(["得意先名",'商品名']).sum()
     item_uri_df = item_uri_df.reset_index()  # インデックスを列に変換
     l.item_uri(item_uri_df)
 
