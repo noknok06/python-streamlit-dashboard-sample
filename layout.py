@@ -13,7 +13,7 @@ class layout:
     def toku_uri_ranking(df):
         col1_1, col1_2 = st.columns(2)
         with col1_1:
-            st.subheader("得意先商品売上 TOP10")
+            st.subheader("得意先商品売上 Ranking")
         with col1_2:
             on_click = st.button("Reset", key="reset_button", type="primary")
         
@@ -74,3 +74,54 @@ class layout:
 
         # グラフを表示
         st.plotly_chart(fig, use_container_width=True)
+
+    def sales_trends(df):
+        st.subheader("得意先売上推移")
+        unique_products = df['得意先名'].unique()
+        color_map = {product: unique_products[i] for i, product in enumerate(unique_products)}
+        chart_data = pd.DataFrame(
+        {
+            "売上年月": df['売上年月'],
+            "販売価格": df['販売価格'],
+            "得意先名": df['得意先名'].map(color_map),  # 得意先ごとの色情報
+        }
+        )
+
+        st.line_chart(chart_data, x="売上年月", y="販売価格", color="得意先名")
+
+    def item_trends(df):
+        st.subheader("商品売上推移")
+        unique_products = df['商品名'].unique()
+        color_map = {product: unique_products[i] for i, product in enumerate(unique_products)}
+        chart_data = pd.DataFrame(
+        {
+            "売上年月": df['売上年月'],
+            "販売価格": df['販売価格'],
+            "商品名": df['商品名'].map(color_map),  # 商品ごとの色情報
+        }
+        )
+
+        st.line_chart(chart_data, x="売上年月", y="販売価格", color="商品名")
+
+    def sales_map(df):
+
+        st.subheader("売上時間帯マップ")
+        unique_products = df['カテゴリー名'].unique()
+        color_map = {product: unique_products[i] for i, product in enumerate(unique_products)}
+
+        chart_data = pd.DataFrame(
+        {
+            "販売価格合計": df['販売価格'],
+            "売上時間帯": df['売上時'],
+            "カテゴリー名": df['カテゴリー名'],
+            "カテゴリー色": df['カテゴリー名'].map(color_map),  # 得意先ごとの色情報
+        }
+        )
+
+        st.scatter_chart(
+            chart_data,
+            x='売上時間帯',
+            y='カテゴリー名',
+            size="販売価格合計",
+            color='カテゴリー名',  # Optional
+        )
